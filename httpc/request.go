@@ -106,12 +106,12 @@ func (r *Request) RestyRequest() *resty.Request {
 // GetResult 通过get 方法获取返回结果
 func (r *Request) GetResult(ctx context.Context, url string, headers map[string]string, result interface{}) (err error) {
 	tracer := opentracing.GlobalTracer()
-	span, spCtx := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
+	span, _:= opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
 	restyReq := r.RestyRequest()
-	//_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.Header))
+	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
 	var response *resty.Response
-	if response, err = restyReq.SetContext(spCtx).SetHeaders(headers).SetResult(&result).Get(url); err != nil {
+	if response, err = restyReq.SetHeaders(headers).SetResult(&result).Get(url); err != nil {
 		sentry.CaptureException(err)
 	}
 	if response.StatusCode() != http.StatusOK || !resty.IsJSONType(response.Header().Get(ContentType)) {
@@ -145,8 +145,7 @@ func (r *Request) PostResult(ctx context.Context, url string, body interface{}, 
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
 	restyReq := r.RestyRequest()
-	req := restyReq.RawRequest
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
+	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
 	var response *resty.Response
 	if response, err = restyReq.SetHeaders(headers).SetBody(body).SetResult(&result).Post(url); err != nil {
 		sentry.CaptureException(err)
@@ -165,8 +164,7 @@ func (r *Request) Post(ctx context.Context, url string, body interface{}, header
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
 	restyReq := r.RestyRequest()
-	req := restyReq.RawRequest
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
+	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
 	var response *resty.Response
 	if response, err = restyReq.SetHeaders(headers).SetBody(body).Post(url); err != nil {
 		sentry.CaptureException(err)
