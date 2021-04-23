@@ -7,10 +7,11 @@ import (
 )
 
 // OpenTracingHandler open tracing gin handler
-func OpenTracingHandler(tracer opentracing.Tracer) gin.HandlerFunc {
+func OpenTracingHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var span opentracing.Span
-		spCtx, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(c.Request.Header))
+		tracer := opentracing.GlobalTracer()
+		spCtx, err := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(c.Request.Header))
 		if err != nil {
 			span = opentracing.StartSpan(
 				c.Request.URL.Path,
