@@ -1,4 +1,4 @@
-module util.jaeger.com/httph
+module github.com/melonwool/tracing/httph
 
 go 1.15
 

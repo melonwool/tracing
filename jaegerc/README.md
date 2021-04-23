@@ -1,3 +1,3 @@
-# util.jaeger.com
+# github.com/melonwool/tracing
 
 opentracing + jaeger

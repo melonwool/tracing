@@ -1,4 +1,4 @@
-module util.jaeger.com/ginh
+module github.com/melonwool/tracing/ginh
 
 go 1.15
 

@@ -1,4 +1,4 @@
-module util.jaeger.com/httpc
+module github.com/melonwool/tracing/httpc
 
 go 1.15
 

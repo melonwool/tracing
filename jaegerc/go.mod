@@ -1,4 +1,4 @@
-module util.jaeger.com/jaegerc
+module github.com/melonwool/tracing/jaegerc
 
 go 1.15
 
