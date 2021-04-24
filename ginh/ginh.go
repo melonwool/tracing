@@ -1,6 +1,7 @@
 package ginh
 
 import (
+	"context"
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -32,8 +33,23 @@ func OpenTracingHandler() gin.HandlerFunc {
 			)
 		}
 		defer span.Finish()
-		c.Set("Tracer", tracer)
-		c.Set("ParentSpanContext", span.Context())
+		c.Set("spanCtx", span.Context())
 		c.Next()
 	}
+}
+
+// GinSpanContext 获取span 和 context
+func GinSpanContext(c *gin.Context, operationName string) (opentracing.Span, context.Context) {
+	var span opentracing.Span
+	var ctx context.Context
+	tracer := opentracing.GlobalTracer()
+	if spanCtxInf, exist := c.Get("spanCtx"); exist {
+		if spanCtx, ok := spanCtxInf.(opentracing.SpanContext); ok {
+			span, ctx = opentracing.StartSpanFromContextWithTracer(context.TODO(), tracer, operationName, opentracing.ChildOf(spanCtx))
+		}
+	}
+	if span == nil {
+		span, ctx = opentracing.StartSpanFromContextWithTracer(context.TODO(), tracer, operationName)
+	}
+	return span, ctx
 }

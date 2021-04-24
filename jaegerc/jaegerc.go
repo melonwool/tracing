@@ -34,7 +34,8 @@ func NewJaegerTracer(jaegerHostPort, appName string, jaegerType JaegerType, para
 		ServiceName: appName,
 	}
 
-	tracer, closer, err := cfg.NewTracer(jaegercfg.Logger(jaeger.StdLogger))
+	// tracer, closer, err := cfg.NewTracer(jaegercfg.Logger(jaeger.StdLogger))
+	tracer, closer, err := cfg.NewTracer(jaegercfg.Logger(jaeger.NullLogger))
 	if err != nil {
 		fmt.Printf("ERROR: cannot init Jaeger: %v\n", err)
 	}
