@@ -32,11 +32,14 @@ type (
 )
 
 type Request struct {
+	Client *resty.Client
 	Option
 }
 
 func NewRequest(optFunc ...OptFunc) *Request {
-	request := &Request{}
+	request := &Request{
+		Client: resty.New(),
+	}
 	for _, fn := range optFunc {
 		fn(request)
 	}
@@ -73,23 +76,22 @@ func ConnectionClose(close bool) OptFunc {
 
 // RestyRequest request client
 func (r *Request) RestyRequest() *resty.Request {
-	client := resty.New()
 	if r.Timeout > 0 {
-		client.SetTimeout(r.Timeout)
+		r.Client.SetTimeout(r.Timeout)
 	} else {
-		client.SetTimeout(DefaultTimeout)
+		r.Client.SetTimeout(DefaultTimeout)
 	}
 	if r.RetryCount > 0 {
-		client.SetRetryCount(r.RetryCount)
+		r.Client.SetRetryCount(r.RetryCount)
 	} else {
-		client.SetRetryCount(DefaultRetryCount)
+		r.Client.SetRetryCount(DefaultRetryCount)
 	}
 	if r.RetryWaitTime > 0 {
-		client.SetRetryWaitTime(r.RetryWaitTime)
+		r.Client.SetRetryWaitTime(r.RetryWaitTime)
 	} else {
-		client.SetRetryWaitTime(DefaultRetryWaitTime)
+		r.Client.SetRetryWaitTime(DefaultRetryWaitTime)
 	}
-	client.AddRetryCondition(func(r *resty.Response, err error) bool {
+	r.Client.AddRetryCondition(func(r *resty.Response, err error) bool {
 		if r.IsError() {
 			return true
 		}
@@ -99,14 +101,14 @@ func (r *Request) RestyRequest() *resty.Request {
 		}
 		return false
 	})
-	client.SetCloseConnection(r.ConnectionClose)
-	return client.R()
+	r.Client.SetCloseConnection(r.ConnectionClose)
+	return r.Client.R()
 }
 
 // GetResult 通过get 方法获取返回结果
 func (r *Request) GetResult(ctx context.Context, url string, headers map[string]string, result interface{}) (err error) {
 	tracer := opentracing.GlobalTracer()
-	span, _:= opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
+	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
 	restyReq := r.RestyRequest()
 	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
