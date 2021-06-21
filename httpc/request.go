@@ -161,14 +161,14 @@ func (r *Request) PostResult(ctx context.Context, url string, body interface{}, 
 }
 
 // Post 通过post 方法获取返回结果，并将结果存储到result 中
-func (r *Request) Post(ctx context.Context, url string, body interface{}, headers map[string]string) (respBody []byte, err error) {
+func (r *Request) Post(ctx context.Context, url string, body interface{}, formData map[string]string, headers map[string]string) (respBody []byte, err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
 	restyReq := r.RestyRequest()
 	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
 	var response *resty.Response
-	if response, err = restyReq.SetHeaders(headers).SetBody(body).Post(url); err != nil {
+	if response, err = restyReq.SetHeaders(headers).SetBody(body).SetFormData(formData).Post(url); err != nil {
 		sentry.CaptureException(err)
 	}
 	respBody = response.Body()
