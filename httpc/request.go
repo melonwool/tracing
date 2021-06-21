@@ -32,7 +32,8 @@ type (
 )
 
 type Request struct {
-	Client *resty.Client
+	Client  *resty.Client
+	Request *resty.Request
 	Option
 }
 
@@ -43,6 +44,7 @@ func NewRequest(optFunc ...OptFunc) *Request {
 	for _, fn := range optFunc {
 		fn(request)
 	}
+	request.restyRequest()
 	return request
 }
 
@@ -74,8 +76,8 @@ func ConnectionClose(close bool) OptFunc {
 	}
 }
 
-// RestyRequest request client
-func (r *Request) RestyRequest() *resty.Request {
+// restyRequest request client
+func (r *Request) restyRequest() {
 	if r.Timeout > 0 {
 		r.Client.SetTimeout(r.Timeout)
 	} else {
@@ -102,18 +104,17 @@ func (r *Request) RestyRequest() *resty.Request {
 		return false
 	})
 	r.Client.SetCloseConnection(r.ConnectionClose)
-	return r.Client.R()
+	r.Request = r.Client.R()
 }
 
 // GetResult 通过get 方法获取返回结果
-func (r *Request) GetResult(ctx context.Context, url string, headers map[string]string, result interface{}) (err error) {
+func (r *Request) GetResult(ctx context.Context, url string, result interface{}) (err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
-	restyReq := r.RestyRequest()
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
+	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
-	if response, err = restyReq.SetHeaders(headers).SetResult(&result).Get(url); err != nil {
+	if response, err = r.Request.SetResult(&result).Get(url); err != nil {
 		sentry.CaptureException(err)
 	}
 	if response.StatusCode() != http.StatusOK || !resty.IsJSONType(response.Header().Get(ContentType)) {
@@ -125,16 +126,15 @@ func (r *Request) GetResult(ctx context.Context, url string, headers map[string]
 }
 
 // Get 通过get 方法获取返回结果
-func (r *Request) Get(ctx context.Context, url string, headers map[string]string) (respBody []byte, err error) {
+func (r *Request) Get(ctx context.Context, url string) (respBody []byte, err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
-	restyReq := r.RestyRequest()
 	if tracer != nil {
-		err = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
+		err = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	}
 	var response *resty.Response
-	if response, err = restyReq.SetHeaders(headers).Get(url); err != nil {
+	if response, err = r.Request.Get(url); err != nil {
 		sentry.CaptureException(err)
 	}
 	respBody = response.Body()
@@ -142,14 +142,13 @@ func (r *Request) Get(ctx context.Context, url string, headers map[string]string
 }
 
 // PostResult 通过post 方法获取返回结果，并将结果存储到result 中
-func (r *Request) PostResult(ctx context.Context, url string, body interface{}, headers map[string]string, result interface{}) (err error) {
+func (r *Request) PostResult(ctx context.Context, url string, result interface{}) (err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
-	restyReq := r.RestyRequest()
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
+	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
-	if response, err = restyReq.SetHeaders(headers).SetBody(body).SetResult(&result).Post(url); err != nil {
+	if response, err = r.Request.SetResult(&result).Post(url); err != nil {
 		sentry.CaptureException(err)
 	}
 	if response.StatusCode() != http.StatusOK || !resty.IsJSONType(response.Header().Get(ContentType)) {
@@ -161,16 +160,35 @@ func (r *Request) PostResult(ctx context.Context, url string, body interface{}, 
 }
 
 // Post 通过post 方法获取返回结果，并将结果存储到result 中
-func (r *Request) Post(ctx context.Context, url string, body interface{}, formData map[string]string, headers map[string]string) (respBody []byte, err error) {
+func (r *Request) Post(ctx context.Context, url string) (respBody []byte, err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
-	restyReq := r.RestyRequest()
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(restyReq.EnableTrace().Header))
+	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
-	if response, err = restyReq.SetHeaders(headers).SetBody(body).SetFormData(formData).Post(url); err != nil {
+	if response, err = r.Request.Post(url); err != nil {
 		sentry.CaptureException(err)
 	}
 	respBody = response.Body()
 	return
+}
+
+// SetFormData 设置post 参数
+func (r *Request) SetFormData(data map[string]string) *resty.Request {
+	return r.Request.SetFormData(data)
+}
+
+// SetHeaders 设置header
+func (r *Request) SetHeaders(headers map[string]string) *resty.Request {
+	return r.Request.SetHeaders(headers)
+}
+
+// SetBody 设置body
+func (r *Request) SetBody(body interface{}) *resty.Request {
+	return r.Request.SetBody(body)
+}
+
+// SetQueryParams 设置query 参数
+func (r *Request) SetQueryParams(params map[string]string) *resty.Request {
+	return r.Request.SetQueryParams(params)
 }
