@@ -32,9 +32,11 @@ type (
 )
 
 type Request struct {
-	Client  *resty.Client
-	Request *resty.Request
+	Client *resty.Client
 	Option
+}
+type restyRequest struct {
+	Request *resty.Request
 }
 
 func NewRequest(optFunc ...OptFunc) *Request {
@@ -44,7 +46,6 @@ func NewRequest(optFunc ...OptFunc) *Request {
 	for _, fn := range optFunc {
 		fn(request)
 	}
-	request.restyRequest()
 	return request
 }
 
@@ -76,8 +77,8 @@ func ConnectionClose(close bool) OptFunc {
 	}
 }
 
-// restyRequest request client
-func (r *Request) restyRequest() {
+// RestyRequest request client
+func (r *Request) RestyRequest() *restyRequest {
 	if r.Timeout > 0 {
 		r.Client.SetTimeout(r.Timeout)
 	} else {
@@ -104,11 +105,11 @@ func (r *Request) restyRequest() {
 		return false
 	})
 	r.Client.SetCloseConnection(r.ConnectionClose)
-	r.Request = r.Client.R()
+	return &restyRequest{Request: r.Client.R()}
 }
 
 // GetResult 通过get 方法获取返回结果
-func (r *Request) GetResult(ctx context.Context, url string, result interface{}) (err error) {
+func (r *restyRequest) GetResult(ctx context.Context, url string, result interface{}) (err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
@@ -126,7 +127,7 @@ func (r *Request) GetResult(ctx context.Context, url string, result interface{})
 }
 
 // Get 通过get 方法获取返回结果
-func (r *Request) Get(ctx context.Context, url string) (respBody []byte, err error) {
+func (r *restyRequest) Get(ctx context.Context, url string) (respBody []byte, err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
@@ -142,7 +143,7 @@ func (r *Request) Get(ctx context.Context, url string) (respBody []byte, err err
 }
 
 // PostResult 通过post 方法获取返回结果，并将结果存储到result 中
-func (r *Request) PostResult(ctx context.Context, url string, result interface{}) (err error) {
+func (r *restyRequest) PostResult(ctx context.Context, url string, result interface{}) (err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
@@ -160,7 +161,7 @@ func (r *Request) PostResult(ctx context.Context, url string, result interface{}
 }
 
 // Post 通过post 方法获取返回结果，并将结果存储到result 中
-func (r *Request) Post(ctx context.Context, url string) (respBody []byte, err error) {
+func (r *restyRequest) Post(ctx context.Context, url string) (respBody []byte, err error) {
 	tracer := opentracing.GlobalTracer()
 	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url)
 	defer span.Finish()
@@ -174,21 +175,21 @@ func (r *Request) Post(ctx context.Context, url string) (respBody []byte, err er
 }
 
 // SetFormData 设置post 参数
-func (r *Request) SetFormData(data map[string]string) *resty.Request {
+func (r *restyRequest) SetFormData(data map[string]string) *resty.Request {
 	return r.Request.SetFormData(data)
 }
 
 // SetHeaders 设置header
-func (r *Request) SetHeaders(headers map[string]string) *resty.Request {
+func (r *restyRequest) SetHeaders(headers map[string]string) *resty.Request {
 	return r.Request.SetHeaders(headers)
 }
 
 // SetBody 设置body
-func (r *Request) SetBody(body interface{}) *resty.Request {
+func (r *restyRequest) SetBody(body interface{}) *resty.Request {
 	return r.Request.SetBody(body)
 }
 
 // SetQueryParams 设置query 参数
-func (r *Request) SetQueryParams(params map[string]string) *resty.Request {
+func (r *restyRequest) SetQueryParams(params map[string]string) *resty.Request {
 	return r.Request.SetQueryParams(params)
 }
