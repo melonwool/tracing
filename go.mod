@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/getsentry/sentry-go v0.10.0
+	github.com/go-redis/redis/v8 v8.11.3 // indirect
 	github.com/go-resty/resty/v2 v2.6.0
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1
