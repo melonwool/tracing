@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opentracing/opentracing-go/ext"
+
 	"github.com/opentracing/opentracing-go"
 
 	"github.com/getsentry/sentry-go"
@@ -112,10 +114,8 @@ func (r *Request) RestyRequest() *restyRequest {
 
 // GetResult 通过get 方法获取返回结果
 func (r *restyRequest) GetResult(ctx context.Context, requestURL string, result interface{}) (err error) {
-	tracer := opentracing.GlobalTracer()
-	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url2func(requestURL))
-	defer span.Finish()
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
+	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
+	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
 	if response, err = r.Request.SetResult(&result).Get(requestURL); err != nil {
 		sentry.CaptureException(err)
@@ -125,31 +125,32 @@ func (r *restyRequest) GetResult(ctx context.Context, requestURL string, result 
 			sentry.CaptureException(err)
 		}
 	}
+	ext.HTTPMethod.Set(span, r.Request.Method)
+	ext.HTTPUrl.Set(span, r.Request.URL)
+	span.SetTag("result", result).Finish()
+
 	return
 }
 
 // Get 通过get 方法获取返回结果
 func (r *restyRequest) Get(ctx context.Context, requestURL string) (respBody []byte, err error) {
-	tracer := opentracing.GlobalTracer()
-	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url2func(requestURL))
-	defer span.Finish()
-	if tracer != nil {
-		err = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
-	}
+	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
+	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
 	if response, err = r.Request.Get(requestURL); err != nil {
 		sentry.CaptureException(err)
 	}
 	respBody = response.Body()
+	ext.HTTPMethod.Set(span, r.Request.Method)
+	ext.HTTPUrl.Set(span, r.Request.URL)
+	span.SetTag("result", string(respBody)).Finish()
 	return
 }
 
 // PostResult 通过post 方法获取返回结果，并将结果存储到result 中
 func (r *restyRequest) PostResult(ctx context.Context, requestURL string, result interface{}) (err error) {
-	tracer := opentracing.GlobalTracer()
-	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url2func(requestURL))
-	defer span.Finish()
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
+	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
+	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
 	if response, err = r.Request.SetResult(&result).Post(requestURL); err != nil {
 		sentry.CaptureException(err)
@@ -159,20 +160,24 @@ func (r *restyRequest) PostResult(ctx context.Context, requestURL string, result
 			sentry.CaptureException(err)
 		}
 	}
+	ext.HTTPMethod.Set(span, r.Request.Method)
+	ext.HTTPUrl.Set(span, r.Request.URL)
+	span.SetTag("result", result).Finish()
 	return
 }
 
 // Post 通过post 方法获取返回结果，并将结果存储到result 中
 func (r *restyRequest) Post(ctx context.Context, requestURL string) (respBody []byte, err error) {
-	tracer := opentracing.GlobalTracer()
-	span, _ := opentracing.StartSpanFromContextWithTracer(ctx, tracer, url2func(requestURL))
-	defer span.Finish()
-	_ = tracer.Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
+	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
+	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
 	if response, err = r.Request.Post(requestURL); err != nil {
 		sentry.CaptureException(err)
 	}
 	respBody = response.Body()
+	ext.HTTPMethod.Set(span, r.Request.Method)
+	ext.HTTPUrl.Set(span, r.Request.URL)
+	span.SetTag("result", string(respBody)).Finish()
 	return
 }
 
@@ -210,5 +215,5 @@ func url2func(requestURL string) string {
 	if funcName == "" {
 		funcName = values.Host
 	}
-	return funcName
+	return "HTTP_Request:" + funcName
 }
