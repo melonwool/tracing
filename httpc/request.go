@@ -12,9 +12,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 
-	"github.com/getsentry/sentry-go"
 	"github.com/go-resty/resty/v2"
-	"github.com/pkg/errors"
 )
 
 const ContentType = "Content-Type"
@@ -103,7 +101,7 @@ func (r *Request) RestyRequest() *restyRequest {
 			return true
 		}
 		if err != nil {
-			sentry.CaptureException(errors.Errorf("%s,error:%s", "retry", err.Error()))
+			//sentry.CaptureException(errors.Errorf("%s,error:%s", "retry", err.Error()))
 			return true
 		}
 		return false
@@ -117,18 +115,17 @@ func (r *restyRequest) GetResult(ctx context.Context, requestURL string, result 
 	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
 	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
+	ext.HTTPMethod.Set(span, r.Request.Method)
+	ext.HTTPUrl.Set(span, r.Request.URL)
+	defer span.SetTag("result", result).Finish()
 	if response, err = r.Request.SetResult(&result).Get(requestURL); err != nil {
-		sentry.CaptureException(err)
+		return
 	}
 	if response.StatusCode() != http.StatusOK || !resty.IsJSONType(response.Header().Get(ContentType)) {
 		if err = json.Unmarshal(response.Body(), &result); err != nil {
-			sentry.CaptureException(err)
+			return
 		}
 	}
-	ext.HTTPMethod.Set(span, r.Request.Method)
-	ext.HTTPUrl.Set(span, r.Request.URL)
-	span.SetTag("result", result).Finish()
-
 	return
 }
 
@@ -137,12 +134,11 @@ func (r *restyRequest) Get(ctx context.Context, requestURL string) (respBody []b
 	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
 	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
-	if response, err = r.Request.Get(requestURL); err != nil {
-		sentry.CaptureException(err)
+	if response, err = r.Request.Get(requestURL); err == nil {
+		respBody = response.Body()
+		ext.HTTPMethod.Set(span, r.Request.Method)
+		ext.HTTPUrl.Set(span, r.Request.URL)
 	}
-	respBody = response.Body()
-	ext.HTTPMethod.Set(span, r.Request.Method)
-	ext.HTTPUrl.Set(span, r.Request.URL)
 	span.SetTag("result", string(respBody)).Finish()
 	return
 }
@@ -151,18 +147,18 @@ func (r *restyRequest) Get(ctx context.Context, requestURL string) (respBody []b
 func (r *restyRequest) PostResult(ctx context.Context, requestURL string, result interface{}) (err error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
 	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
+	ext.HTTPMethod.Set(span, r.Request.Method)
+	ext.HTTPUrl.Set(span, r.Request.URL)
+	defer span.SetTag("result", result).Finish()
 	var response *resty.Response
 	if response, err = r.Request.SetResult(&result).Post(requestURL); err != nil {
-		sentry.CaptureException(err)
+		return
 	}
 	if response.StatusCode() != http.StatusOK || !resty.IsJSONType(response.Header().Get(ContentType)) {
 		if err = json.Unmarshal(response.Body(), &result); err != nil {
-			sentry.CaptureException(err)
+			return
 		}
 	}
-	ext.HTTPMethod.Set(span, r.Request.Method)
-	ext.HTTPUrl.Set(span, r.Request.URL)
-	span.SetTag("result", result).Finish()
 	return
 }
 
@@ -171,12 +167,11 @@ func (r *restyRequest) Post(ctx context.Context, requestURL string) (respBody []
 	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
 	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
-	if response, err = r.Request.Post(requestURL); err != nil {
-		sentry.CaptureException(err)
+	if response, err = r.Request.Post(requestURL); err == nil {
+		respBody = response.Body()
+		ext.HTTPMethod.Set(span, r.Request.Method)
+		ext.HTTPUrl.Set(span, r.Request.URL)
 	}
-	respBody = response.Body()
-	ext.HTTPMethod.Set(span, r.Request.Method)
-	ext.HTTPUrl.Set(span, r.Request.URL)
 	span.SetTag("result", string(respBody)).Finish()
 	return
 }
