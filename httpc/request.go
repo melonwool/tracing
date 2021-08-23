@@ -115,8 +115,8 @@ func (r *restyRequest) GetResult(ctx context.Context, requestURL string, result 
 	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
 	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
 	var response *resty.Response
-	ext.HTTPMethod.Set(span, r.Request.Method)
-	ext.HTTPUrl.Set(span, r.Request.URL)
+	ext.HTTPMethod.Set(span, http.MethodGet)
+	ext.HTTPUrl.Set(span, requestURL)
 	defer span.SetTag("result", result).Finish()
 	if response, err = r.Request.SetResult(&result).Get(requestURL); err != nil {
 		return
@@ -147,8 +147,8 @@ func (r *restyRequest) Get(ctx context.Context, requestURL string) (respBody []b
 func (r *restyRequest) PostResult(ctx context.Context, requestURL string, result interface{}) (err error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, url2func(requestURL))
 	_ = span.Tracer().Inject(span.Context(), opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Request.EnableTrace().Header))
-	ext.HTTPMethod.Set(span, r.Request.Method)
-	ext.HTTPUrl.Set(span, r.Request.URL)
+	ext.HTTPMethod.Set(span, http.MethodPost)
+	ext.HTTPUrl.Set(span, requestURL)
 	defer span.SetTag("result", result).Finish()
 	var response *resty.Response
 	if response, err = r.Request.SetResult(&result).Post(requestURL); err != nil {
