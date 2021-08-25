@@ -88,24 +88,21 @@ func (r *Request) RestyRequest() *restyRequest {
 	}
 	if r.RetryCount > 0 {
 		r.Client.SetRetryCount(r.RetryCount)
-	} else {
-		r.Client.SetRetryCount(DefaultRetryCount)
-	}
-	if r.RetryWaitTime > 0 {
-		r.Client.SetRetryWaitTime(r.RetryWaitTime)
-	} else {
-		r.Client.SetRetryWaitTime(DefaultRetryWaitTime)
-	}
-	r.Client.AddRetryCondition(func(r *resty.Response, err error) bool {
-		if r.IsError() {
-			return true
+		if r.RetryWaitTime > 0 {
+			r.Client.SetRetryWaitTime(r.RetryWaitTime)
+		} else {
+			r.Client.SetRetryWaitTime(DefaultRetryWaitTime)
 		}
-		if err != nil {
-			//sentry.CaptureException(errors.Errorf("%s,error:%s", "retry", err.Error()))
-			return true
-		}
-		return false
-	})
+		r.Client.AddRetryCondition(func(r *resty.Response, err error) bool {
+			if r.IsError() {
+				return true
+			}
+			if err != nil {
+				return true
+			}
+			return false
+		})
+	}
 	r.Client.SetCloseConnection(r.ConnectionClose)
 	return &restyRequest{Request: r.Client.R()}
 }
